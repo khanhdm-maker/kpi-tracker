@@ -1,0 +1,12 @@
+name = "kpi-tracker-worker"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kpi-tracker-db"
+database_id = "cceafed7-a052-45d6-b4a6-ac10ff1707e7"
+
+[vars]
+ENVIRONMENT = "production"
