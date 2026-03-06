@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>KPI Tracker</title>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+```
+
+Lưu vào `C:\Users\khanh\Downloads\kpi-tracker\public\index.html`
+
+Sau đó quay lại CMD:
+```
+git add .
+git commit -m "Add public/index.html"
+git push
