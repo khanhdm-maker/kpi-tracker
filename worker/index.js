@@ -1,6 +1,7 @@
 import { handleProgress } from './routes/progress.js';
 import { handleAdmin } from './routes/admin.js';
 import { handleTeam } from './routes/team.js';
+import { handleAuth, verifyToken } from './routes/auth.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -27,33 +28,34 @@ export default {
 
     const url = new URL(request.url);
     const path = url.pathname;
+    const SECRET = env.JWT_SECRET || 'kpi-tracker-secret-2026';
 
     try {
-      const userEmail = request.headers.get('CF-Access-Authenticated-User-Email');
-      const email = userEmail || url.searchParams.get('dev_email');
-
-      if (!email) {
-        return err('Unauthorized - please login via Cloudflare Access', 401);
+      // Auth routes không cần token
+      if (path.startsWith('/api/auth')) {
+        return handleAuth(request, { env, json, err });
       }
 
+      // Tất cả routes khác cần token
+      const authHeader = request.headers.get('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+
+      if (!token) return err('Unauthorized - please login', 401);
+
+      const payload = await verifyToken(token, SECRET);
+      if (!payload) return err('Invalid or expired token', 401);
+
+      // Lấy user từ DB
       let user = await env.DB.prepare(
-        'SELECT * FROM users WHERE email = ?'
-      ).bind(email).first();
+        'SELECT * FROM users WHERE id = ?'
+      ).bind(payload.sub).first();
 
-      if (!user) {
-        const id = crypto.randomUUID();
-        await env.DB.prepare(
-          'INSERT INTO users (id, email, name, role) VALUES (?, ?, ?, ?)'
-        ).bind(id, email, email.split('@')[0], 'member').run();
-        user = await env.DB.prepare(
-          'SELECT * FROM users WHERE email = ?'
-        ).bind(email).first();
-      }
+      if (!user) return err('User not found', 401);
 
       const ctx = { user, env, json, err };
 
       if (path === '/api/me' && request.method === 'GET') {
-        return json({ user });
+        return json({ user: { id: user.id, email: user.email, name: user.name, role: user.role, team_id: user.team_id } });
       }
 
       if (path.startsWith('/api/progress')) {
@@ -69,14 +71,4 @@ export default {
         if (user.role !== 'admin' && user.role !== 'team_leader') {
           return err('Forbidden', 403);
         }
-        return handleTeam(request, ctx);
-      }
-
-      return err('Not found', 404);
-
-    } catch (e) {
-      console.error(e);
-      return err('Internal server error: ' + e.message, 500);
-    }
-  },
-};
+        return handleTeam(r
