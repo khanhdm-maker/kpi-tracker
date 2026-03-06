@@ -1,6 +1,29 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LineChart, Line, ReferenceLine } from "recharts";
 
+// ─── Firebase ──────────────────────────────────────────────────────────────
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBHE673M1yHb8pN3wmpU0P5otIfj6w3ND8",
+  authDomain: "puma-perfomance.firebaseapp.com",
+  projectId: "puma-perfomance",
+  storageBucket: "puma-perfomance.firebasestorage.app",
+  messagingSenderId: "200820968168",
+  appId: "1:200820968168:web:22bd0931bf052b512a175d",
+};
+const _fbApp = initializeApp(firebaseConfig);
+const _db = getFirestore(_fbApp);
+
+const fbGet = async (key) => {
+  try { const s = await getDoc(doc(_db,"kpi_app",key)); return s.exists()?s.data().value:null; } catch { return null; }
+};
+const fbSet = (key, value) => {
+  try { setDoc(doc(_db,"kpi_app",key),{value}); } catch {}
+};
+// ──────────────────────────────────────────────────────────────────────────
+
 if (typeof document !== "undefined" && !document.getElementById("inter-font")) {
   const link = document.createElement("link");
   link.id = "inter-font"; link.rel = "stylesheet";
@@ -75,7 +98,7 @@ function LoginScreen({members,onLogin,onManagerLogin}) {
   const [error,setError]=useState("");
   const [storedPin,setStoredPin]=useState(null);
 
-  useEffect(()=>{ (async()=>{ try{const r=await window.storage.get("mgr_pin",true);setStoredPin(r?.value||DEFAULT_MANAGER_PIN);}catch{setStoredPin(DEFAULT_MANAGER_PIN);} })(); },[]);
+  useEffect(()=>{ (async()=>{ try{const v=await fbGet("mgr_pin");setStoredPin(v||DEFAULT_MANAGER_PIN);}catch{setStoredPin(DEFAULT_MANAGER_PIN);} })(); },[]);
 
   const handleMemberLogin=()=>{
     if(!selected){setError("Please select your name.");return;}
@@ -389,7 +412,7 @@ function ManagerPanel({members,setMembers,allData,onLogout,onViewMember}) {
   const [mgrStoredPin,setMgrStoredPin]=useState(null);
   const [mgrOld,setMgrOld]=useState("");const[mgrNew1,setMgrNew1]=useState("");const[mgrNew2,setMgrNew2]=useState("");const[mgrMsg,setMgrMsg]=useState("");
 
-  useEffect(()=>{ (async()=>{ try{const r=await window.storage.get("mgr_pin",true);setMgrStoredPin(r?.value||DEFAULT_MANAGER_PIN);}catch{setMgrStoredPin(DEFAULT_MANAGER_PIN);} })(); },[]);
+  useEffect(()=>{ (async()=>{ try{const v=await fbGet("mgr_pin");setMgrStoredPin(v||DEFAULT_MANAGER_PIN);}catch{setMgrStoredPin(DEFAULT_MANAGER_PIN);} })(); },[]);
 
   const isDefaultPin=(mgrStoredPin??DEFAULT_MANAGER_PIN)===DEFAULT_MANAGER_PIN;
 
@@ -398,7 +421,7 @@ function ManagerPanel({members,setMembers,allData,onLogout,onViewMember}) {
     if(mgrOld!==active){setMgrMsg("❌ Current PIN is incorrect.");return;}
     if(mgrNew1.length<4){setMgrMsg("❌ New PIN must be at least 4 characters.");return;}
     if(mgrNew1!==mgrNew2){setMgrMsg("❌ New PINs don't match.");return;}
-    try{await window.storage.set("mgr_pin",mgrNew1,true);setMgrStoredPin(mgrNew1);setMgrMsg("✅ PIN changed!");setMgrOld("");setMgrNew1("");setMgrNew2("");}
+    try{await fbSet("mgr_pin",mgrNew1);setMgrStoredPin(mgrNew1);setMgrMsg("✅ PIN changed!");setMgrOld("");setMgrNew1("");setMgrNew2("");}
     catch{setMgrMsg("❌ Failed to save.");}
   };
 
@@ -1640,8 +1663,8 @@ export default function App() {
 
   useEffect(()=>{
     (async()=>{
-      try{const r=await window.storage.get("kpi_members",true);if(r?.value)setMembersState(JSON.parse(r.value));}catch{}
-      try{const r=await window.storage.get("kpi_alldata",true);if(r?.value)setAllData(JSON.parse(r.value));}catch{}
+      try{const v=await fbGet("kpi_members");if(v)setMembersState(JSON.parse(v));}catch{}
+      try{const v=await fbGet("kpi_alldata");if(v)setAllData(JSON.parse(v));}catch{}
       setScreen("login");
     })();
   },[]);
@@ -1649,7 +1672,7 @@ export default function App() {
   const setMembers=useCallback((updater)=>{
     setMembersState(prev=>{
       const next=typeof updater==="function"?updater(prev):updater;
-      window.storage.set("kpi_members",JSON.stringify(next),true).catch(()=>{});
+      fbSet("kpi_members",JSON.stringify(next));
       return next;
     });
   },[]);
@@ -1657,7 +1680,7 @@ export default function App() {
   const setMemberData=useCallback((memberId,data)=>{
     setAllData(prev=>{
       const next={...prev,[memberId]:data};
-      window.storage.set("kpi_alldata",JSON.stringify(next),true).catch(()=>{});
+      fbSet("kpi_alldata",JSON.stringify(next));
       return next;
     });
   },[]);
